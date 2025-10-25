@@ -1,18 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>⚽ Soccer Pundit</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<link rel="icon" href="data:,">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>⚽ Soccer Pundit</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="icon" href="data:,">
 </head>
 <body class="min-h-screen bg-slate-950 text-slate-100">
   <div class="mx-auto max-w-4xl h-screen flex flex-col">
-    <!-- Header -->
     <header class="px-4 py-4 border-b border-slate-800">
       <div class="flex items-center justify-between gap-4">
-        <h1 class="text-lg font-semibold tracking-tight">⚽ Soccer Pundit</h1>
+        <h1 class="text-lg font-semibold">⚽ Soccer Pundit</h1>
         <div class="flex items-center gap-2">
           <select id="mode" class="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm">
             <option value="pundit">Pundit (balanced)</option>
@@ -21,133 +20,122 @@
             <option value="stats">Stats-heavy</option>
           </select>
           <label class="inline-flex items-center gap-2 text-sm">
-            <input id="hot" type="checkbox" class="accent-emerald-400">
-            Hot take
+            <input id="hot" type="checkbox" class="accent-emerald-400"> Hot take
           </label>
         </div>
       </div>
     </header>
 
-    <!-- Chat area -->
     <main id="chat" class="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-      <!-- Example welcome bubble -->
       <div class="flex gap-3">
         <div class="shrink-0 w-8 h-8 rounded-full bg-emerald-500/20 grid place-items-center">🗣️</div>
         <div class="max-w-[80%] bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3">
           <p class="text-sm leading-relaxed">
-            Ask about the Premier League, La Liga, or UCL—try:
+            Ask about PL, La Liga, or UCL — try:
             <em>“Compare Haaland vs Lewandowski against low blocks.”</em>
           </p>
         </div>
       </div>
     </main>
 
-    <!-- Composer -->
     <footer class="sticky bottom-0 px-4 py-4 bg-gradient-to-t from-slate-950 to-transparent">
       <div class="flex items-end gap-3">
         <textarea id="q" rows="2" placeholder="Type your question…"
-          class="flex-1 resize-none bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
-        ></textarea>
+          class="flex-1 resize-none bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"></textarea>
         <button id="send"
-          class="h-10 px-4 rounded-xl text-sm font-medium bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 transition"
-        >Send</button>
+          class="h-10 px-4 rounded-xl text-sm font-medium bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 transition">Send</button>
       </div>
       <div id="meta" class="mt-2 text-xs text-slate-400"></div>
     </footer>
   </div>
 
 <script>
-const chat = document.getElementById('chat');
-const q = document.getElementById('q');
-const sendBtn = document.getElementById('send');
-const modeSel = document.getElementById('mode');
-const hot = document.getElementById('hot');
-const meta = document.getElementById('meta');
+  // Use Render in production, localhost for local dev
+  const BACKEND = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+    ? 'http://localhost:7860/'
+    : 'https://soccer-pundit-chatbot.onrender.com/'; // <-- your Render URL
 
-let history = [];
+  const chat = document.getElementById('chat');
+  const q = document.getElementById('q');
+  const sendBtn = document.getElementById('send');
+  const modeSel = document.getElementById('mode');
+  const hot = document.getElementById('hot');
+  const meta = document.getElementById('meta');
 
-function bubble(role, text) {
-  const wrap = document.createElement('div');
-  wrap.className = 'flex gap-3 ' + (role === 'me' ? 'justify-end' : '');
-  const avatar = document.createElement('div');
-  avatar.className = 'shrink-0 w-8 h-8 rounded-full grid place-items-center ' + (role === 'me' ? 'bg-blue-500/20 order-2' : 'bg-emerald-500/20');
-  avatar.textContent = role === 'me' ? '🙋' : '🗣️';
+  let history = [];
 
-  const box = document.createElement('div');
-  box.className = 'max-w-[80%] rounded-2xl px-4 py-3 border ' +
-                   (role === 'me' ? 'bg-slate-900 border-slate-800' : 'bg-slate-900 border-slate-800');
-  const p = document.createElement('p');
-  p.className = 'text-sm leading-relaxed whitespace-pre-wrap';
-  p.textContent = text;
-  box.appendChild(p);
-
-  if (role === 'me') { wrap.appendChild(box); wrap.appendChild(avatar); }
-  else { wrap.appendChild(avatar); wrap.appendChild(box); }
-  chat.appendChild(wrap);
-  chat.scrollTop = chat.scrollHeight;
-}
-
-function loadingBubble() {
-  const wrap = document.createElement('div');
-  wrap.className = 'flex gap-3';
-  wrap.id = 'loading';
-  const avatar = document.createElement('div');
-  avatar.className = 'shrink-0 w-8 h-8 rounded-full bg-emerald-500/20 grid place-items-center';
-  avatar.textContent = '🗣️';
-  const box = document.createElement('div');
-  box.className = 'max-w-[80%] rounded-2xl px-4 py-3 border bg-slate-900 border-slate-800';
-  box.innerHTML = '<span class="inline-flex items-center gap-2 text-sm text-slate-300">Thinking<span class="animate-pulse">…</span></span>';
-  wrap.appendChild(avatar); wrap.appendChild(box);
-  chat.appendChild(wrap);
-  chat.scrollTop = chat.scrollHeight;
-}
-function removeLoading() {
-  const n = document.getElementById('loading');
-  if (n) n.remove();
-}
-
-async function send() {
-  const text = q.value.trim();
-  if (!text) return;
-  bubble('me', text);
-  q.value = '';
-  loadingBubble();
-  sendBtn.disabled = true; sendBtn.textContent = '…';
-
-  const body = {
-    messages: [...history, {role:'user', content:text}],
-    mode: modeSel.value,
-    hot_takes: hot.checked,
-    max_tokens: 550
-  };
-
-  try {
-    const r = await fetch('http://localhost:7860/chat', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(body)
-    });
-    if (!r.ok) {
-      const t = await r.text();
-      throw new Error(`Server ${r.status}: ${t}`);
-    }
-    const data = await r.json();
-    removeLoading();
-    bubble('bot', data.answer || '(no answer)');
-    history.push({role:'assistant', content: data.answer || ''});
-    meta.textContent = `CSV context: ${data.players_context_added ? 'yes' : 'no'} · KB hits: ${data.kb_used?.length ?? 0}`;
-  } catch (err) {
-    removeLoading();
-    bubble('bot', `❗ Error: ${err.message}`);
-  } finally {
-    sendBtn.disabled = false; sendBtn.textContent = 'Send';
+  function bubble(role, text) {
+    const wrap = document.createElement('div');
+    wrap.className = 'flex gap-3 ' + (role === 'me' ? 'justify-end' : '');
+    const avatar = document.createElement('div');
+    avatar.className = 'shrink-0 w-8 h-8 rounded-full grid place-items-center ' + (role === 'me' ? 'bg-blue-500/20 order-2' : 'bg-emerald-500/20');
+    avatar.textContent = role === 'me' ? '🙋' : '🗣️';
+    const box = document.createElement('div');
+    box.className = 'max-w-[80%] rounded-2xl px-4 py-3 border bg-slate-900 border-slate-800';
+    const p = document.createElement('p');
+    p.className = 'text-sm leading-relaxed whitespace-pre-wrap';
+    p.textContent = text;
+    box.appendChild(p);
+    if (role === 'me') { wrap.appendChild(box); wrap.appendChild(avatar); }
+    else { wrap.appendChild(avatar); wrap.appendChild(box); }
+    chat.appendChild(wrap);
+    chat.scrollTop = chat.scrollHeight;
   }
-}
 
-sendBtn.addEventListener('click', send);
-q.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send();
-});
+  function loadingBubble() {
+    const wrap = document.createElement('div');
+    wrap.className = 'flex gap-3'; wrap.id = 'loading';
+    const avatar = document.createElement('div');
+    avatar.className = 'shrink-0 w-8 h-8 rounded-full bg-emerald-500/20 grid place-items-center';
+    avatar.textContent = '🗣️';
+    const box = document.createElement('div');
+    box.className = 'max-w-[80%] rounded-2xl px-4 py-3 border bg-slate-900 border-slate-800';
+    box.innerHTML = '<span class="inline-flex items-center gap-2 text-sm text-slate-300">Thinking<span class="animate-pulse">…</span></span>';
+    wrap.appendChild(avatar); wrap.appendChild(box);
+    chat.appendChild(wrap);
+    chat.scrollTop = chat.scrollHeight;
+  }
+  function removeLoading() { const n = document.getElementById('loading'); if (n) n.remove(); }
+
+  async function send() {
+    const text = q.value.trim();
+    if (!text) return;
+    bubble('me', text);
+    q.value = '';
+    loadingBubble();
+    sendBtn.disabled = true; sendBtn.textContent = '…';
+
+    const body = {
+      messages: [...history, {role:'user', content:text}],
+      mode: modeSel.value,
+      hot_takes: hot.checked,
+      max_tokens: 550
+    };
+
+    try {
+      const r = await fetch(`${BACKEND}chat`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+      });
+      if (!r.ok) throw new Error(`Server ${r.status}: ${await r.text()}`);
+      const data = await r.json();
+      removeLoading();
+      bubble('bot', data.answer || '(no answer)');
+      history.push({role:'assistant', content: data.answer || ''});
+      meta.textContent = `CSV context: ${data.players_context_added ? 'yes' : 'no'} · KB hits: ${data.kb_used?.length ?? 0}`;
+    } catch (err) {
+      removeLoading();
+      bubble('bot', `❗ Error: ${err.message}`);
+    } finally {
+      sendBtn.disabled = false; sendBtn.textContent = 'Send';
+    }
+  }
+
+  sendBtn.addEventListener('click', send);
+  q.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send();
+  });
 </script>
 </body>
 </html>
